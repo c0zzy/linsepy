@@ -14,6 +14,14 @@ def oriented_dist_point_to_seg(P, A, B):
            np.sqrt(euclid_distance_squared(A, B))
 
 
+def ccw(A, B, C):
+    return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
+
+
+def intersect(A, B, C, D):
+    return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D)
+
+
 def closest_point_on_seg(P, A, B):
     vector = (B - A)
     # normalize
@@ -109,30 +117,24 @@ class LinearSeparation:
         min_dist = np.inf
         segment = []
         for h1, h2 in [[self.hull1, self.hull2], [self.hull2, self.hull1]]:
-            len2 = len(h2)
-            for P in h1:
-                side = None
-                changed = False
-                for i in range(len2):
+            for i1 in range(len(h1)):
+                A1 = h1[i1]
+                B1 = h1[(i1 + 1) % len(h1)]
+
+                for i2 in range(len(h2)):
                     # edge of the hull AB
-                    A = h2[i]
-                    B = h2[(i + 1) % len2]
+                    A2 = h2[i2]
+                    B2 = h2[(i2 + 1) % len(h2)]
 
-                    side_now = cross_product(B - A, B - P) > 0
+                    # if hulls intersect then sets are linearly inseparable
+                    if intersect(A1, B1, A2, B2):
+                        return None
 
-                    if side is not None and not changed:
-                        changed = side != side_now
-                    side = side_now
-
-                    closest = closest_point_on_seg(P, A, B)
-                    dist = euclid_distance_squared(P, closest)
+                    closest = closest_point_on_seg(A1, A2, B2)
+                    dist = euclid_distance_squared(A1, closest)
                     if dist < min_dist:
                         min_dist = dist
-                        segment = [P, closest]
-
-                # the point P is inside the hull h2 therefore sets are linearly inseparable
-                if not changed:
-                    return None
+                        segment = [A1, closest]
 
         # implicit definition of separating line
         normal_vector = segment[0] - segment[1]
@@ -142,16 +144,3 @@ class LinearSeparation:
         c = - a * midpoint[0] - b * midpoint[1]
         self.segment = segment
         return {'a': a, 'b': b, 'c': c}
-
-
-if __name__ == '__main__':
-    n1 = 20
-    n2 = 30
-
-    points1 = np.random.rand(n1, 2) - 1
-    points2 = np.random.rand(n2, 2)
-
-    points1[0] = (0.5, 0.5)
-
-    separation = LinearSeparation(points1, points2)
-    separation.separate()
