@@ -106,8 +106,8 @@ class LinearSeparation:
 
         np_hull = np.array(hull)
         # sort points to create polygon
-        center = np.mean(np_hull, axis=0)
-        angles = np.arctan2(np_hull[:, 1] - center[1], np_hull[:, 0] - center[0])
+        inner_point = np.mean(np_hull[0:3], axis=0)
+        angles = np.arctan2(np_hull[:, 1] - inner_point[1], np_hull[:, 0] - inner_point[0])
         return np_hull[np.argsort(angles, kind='heapsort')]
 
     def separate(self):
@@ -121,6 +121,8 @@ class LinearSeparation:
                 A1 = h1[i1]
                 B1 = h1[(i1 + 1) % len(h1)]
 
+                side = None
+                changed = False
                 for i2 in range(len(h2)):
                     # edge of the hull AB
                     A2 = h2[i2]
@@ -130,11 +132,20 @@ class LinearSeparation:
                     if intersect(A1, B1, A2, B2):
                         return None
 
+                    side_now = cross_product(B2 - A2, B2 - A1) > 0
+                    if side is not None and not changed:
+                        changed = side != side_now
+                    side = side_now
+
                     closest = closest_point_on_seg(A1, A2, B2)
                     dist = euclid_distance_squared(A1, closest)
                     if dist < min_dist:
                         min_dist = dist
                         segment = [A1, closest]
+
+                # the point A1 is inside the hull h2 therefore sets are linearly inseparable
+                if not changed:
+                    return None
 
         # implicit definition of separating line
         normal_vector = segment[0] - segment[1]
